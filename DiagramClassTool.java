@@ -8,7 +8,7 @@ interface DiagramFormatter
     List<String> format(List<String> classInfo);
 }
 
-abstract class DiagramPreProcessor implements DiagramFormatter
+class DiagramPreProcessor
 {
     boolean methods;
     boolean attributes;
@@ -36,25 +36,30 @@ abstract class DiagramPreProcessor implements DiagramFormatter
 
         for (String line : classInfo) 
         {
-            if(line.startsWith("Class:"))
-            {
-                currentClass = extractSimpleName(line.substring(6).trim());
-
-                if(ignoreClasses.contains(currentClass))
+            
+                if(line.startsWith("Class:"))
                 {
-                    statesFlag = 1;
-                }
-            }else if(line.startsWith("Fields:"))
-            {
-                statesFlag = 2;
-    
-            }else if(line.startsWith("Methods"))
-            {
-                statesFlag = 3;
-    
-            }
+                    currentClass = extractSimpleName(line.substring(6).trim());
 
-            switch (statesFlag) {
+                    if(ignoreClasses.contains(currentClass))
+                    {
+                        statesFlag = 1;
+                    }
+
+                }else if(line.startsWith("Fields:") && attributes && statesFlag !=1)
+                {
+                    statesFlag = 2;
+        
+                }else if(line.startsWith("Methods") && methods && statesFlag !=1)
+                {
+                    statesFlag = 3;
+        
+                }
+            
+            
+
+            switch (statesFlag) 
+            {
                 case 0:
                 {
                     processedInfo.add(line);
@@ -68,23 +73,31 @@ abstract class DiagramPreProcessor implements DiagramFormatter
                 }
                 case 2:
                 {
-                    if(!line.startsWith("Methods:") || !line.startsWith("Constructors:") || !line.startsWith("Class:") ||
-                    !line.startsWith("Interface:") || !line.startsWith(line) || !line.startsWith("Extends:"))
+                    if(line.startsWith("Methods:") || line.startsWith("Constructors:") || line.startsWith("Class:") ||
+                    line.startsWith("Interface:") || line.startsWith("Extends:"))
                     {
-                        break;
+                        statesFlag = 0;
+                        if(line.startsWith("Methods:") && methods)  break;
+                         
+                        processedInfo.add(line);
+                        
+                       
                     }
-                    statesFlag = 0;
+                    
                     break;
                 }
                 case 3:
                 {
-                    if(!line.startsWith("Fields:") || !line.startsWith("Constructors:") || !line.startsWith("Class:") ||
-                    !line.startsWith("Interface:") || !line.startsWith(line) || !line.startsWith("Extends:"))
+                    if(line.startsWith("Fields:") || line.startsWith("Constructors:") || line.startsWith("Class:") ||
+                    line.startsWith("Interface:") || line.startsWith("Extends:"))
                     {
-                        break;
+                        statesFlag = 0;
+                        if(line.startsWith("Fields:") && attributes)  break;
+
+                        processedInfo.add(line);
                     }
 
-                    statesFlag = 0;
+                    
                     break;
                    
                 }
@@ -419,11 +432,14 @@ class YumlFormatter implements DiagramFormatter
     {
         StringBuilder sb = new StringBuilder();
         sb.append("[").append(className);
-        if (!members.isEmpty()) {
+        if (!members.isEmpty()) 
+        {
             sb.append("|");
-            for (int i = 0; i < members.size(); i++) {
+            for (int i = 0; i < members.size(); i++) 
+            {
                 sb.append(members.get(i));
-                if (i < members.size() - 1) {
+                if (i < members.size() - 1) 
+                {
                     sb.append(";");
                 }
             }
@@ -444,8 +460,8 @@ class YumlFormatter implements DiagramFormatter
     }
 
 
-    class DiagramFormatterFactory 
-    {
+class DiagramFormatterFactory 
+{
     
     
     public static DiagramFormatter getFormatter(String type) 
@@ -494,8 +510,16 @@ public class DiagramClassTool
 
         List<String> classInfo = extractor.getInfo();
 
-        DiagramFormatter formatter = DiagramFormatterFactory.getFormatter("yuml");
-        List<String> output = formatter.format(classInfo);
+        List<String> ignoreClass = new ArrayList<>();
+        ignoreClass.add("TextDisplay");
+        ignoreClass.add("TemperatureSensor");
+
+        DiagramPreProcessor preProc = new DiagramPreProcessor(classInfo, true, true, false, ignoreClass);
+
+        List<String> processedInfo = preProc.ProcessInfo();
+
+        DiagramFormatter formatter = DiagramFormatterFactory.getFormatter("plantuml");
+        List<String> output = formatter.format(processedInfo);
 
         for (String line : output) 
         {
